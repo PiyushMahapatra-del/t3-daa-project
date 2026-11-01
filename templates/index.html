@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Delivery Optimizer</title>
+<link rel="stylesheet" href="/static/css/style.css"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<header>
+  <div class="logo">📦 Delivery Optimizer</div>
+  <nav>
+    <button class="tab-btn active" data-tab="graph">🗺 City Map</button>
+    <button class="tab-btn" data-tab="routing">🔀 Routing</button>
+    <button class="tab-btn" data-tab="orders">📋 Orders</button>
+    <button class="tab-btn" data-tab="benchmark">📊 Benchmark</button>
+    <button class="tab-btn" data-tab="knapsack">🎒 Knapsack</button>
+  </nav>
+</header>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 1 — City Map                                                       -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel active" id="tab-graph">
+  <div class="panel-header">
+    <h2>City Graph Generator</h2>
+    <div class="controls">
+      <label>Cities: <input type="number" id="gen-n" value="12" min="3" max="50"/></label>
+      <label>Seed: <input type="number" id="gen-seed" value="42" min="1" max="9999"/></label>
+      <button id="btn-generate" class="btn primary">Generate</button>
+    </div>
+  </div>
+  <div class="canvas-wrap">
+    <canvas id="graph-canvas"></canvas>
+    <div id="graph-info" class="info-box">Generate a graph to start.</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 2 — Routing (Dijkstra + TSP)                                       -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-routing">
+  <div class="panel-header">
+    <h2>Route Planning</h2>
+  </div>
+  <div class="two-col">
+    <!-- Dijkstra -->
+    <div class="card">
+      <h3>⚡ Shortest Path (Dijkstra)</h3>
+      <label>Source city index: <input type="number" id="dijk-src" value="0" min="0"/></label>
+      <label>Dest city index: <input type="number" id="dijk-dst" value="5" min="0"/></label>
+      <button id="btn-dijkstra" class="btn primary">Find Shortest Path</button>
+      <div id="dijkstra-result" class="result-box"></div>
+    </div>
+
+    <!-- TSP -->
+    <div class="card">
+      <h3>🔄 TSP Route Planner</h3>
+      <label>Depot index: <input type="number" id="tsp-depot" value="0" min="0"/></label>
+      <label>Stops (comma-sep): <input type="text" id="tsp-stops" placeholder="1,3,5,7"/></label>
+      <label>Algorithm:
+        <select id="tsp-algo">
+          <option value="greedy">Nearest Neighbor (Greedy)</option>
+          <option value="2opt">2-Opt Improved</option>
+          <option value="dp">Exact DP (≤12 stops)</option>
+        </select>
+      </label>
+      <button id="btn-tsp" class="btn primary">Plan TSP Route</button>
+      <div id="tsp-result" class="result-box"></div>
+    </div>
+  </div>
+
+  <!-- Route canvas -->
+  <div class="canvas-wrap">
+    <canvas id="route-canvas"></canvas>
+    <div id="route-legend" class="legend"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 3 — Order & Driver Management                                      -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-orders">
+  <div class="panel-header">
+    <h2>Order & Driver Management</h2>
+    <button id="btn-load-demo" class="btn secondary">Load Demo Data</button>
+    <button id="btn-assign" class="btn primary">Assign Orders →</button>
+  </div>
+
+  <div class="two-col">
+    <!-- Orders -->
+    <div class="card">
+      <h3>📦 Orders</h3>
+      <div class="add-row">
+        <input type="number" id="o-src" placeholder="Src city" min="0" max="49" value="0"/>
+        <input type="number" id="o-dst" placeholder="Dst city" min="0" max="49" value="3"/>
+        <input type="number" id="o-weight" placeholder="Weight(kg)" min="1" max="200" value="20"/>
+        <select id="o-priority">
+          <option value="URGENT">🔴 URGENT</option>
+          <option value="NORMAL" selected>🟡 NORMAL</option>
+          <option value="LOW">🟢 LOW</option>
+        </select>
+        <button id="btn-add-order" class="btn small">+ Add</button>
+      </div>
+      <div id="orders-table-wrap">
+        <table id="orders-table">
+          <thead><tr><th>#</th><th>Src→Dst</th><th>Weight</th><th>Priority</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Drivers -->
+    <div class="card">
+      <h3>🚗 Drivers</h3>
+      <div class="add-row">
+        <input type="text" id="d-name" placeholder="Driver name" value="Driver A"/>
+        <input type="number" id="d-cap" placeholder="Capacity(kg)" min="10" max="1000" value="100"/>
+        <button id="btn-add-driver" class="btn small">+ Add</button>
+      </div>
+      <div id="drivers-table-wrap">
+        <table id="drivers-table">
+          <thead><tr><th>#</th><th>Name</th><th>Capacity</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Assignment Results -->
+  <div class="card" id="assign-result-card" style="display:none">
+    <h3>📋 Assignment Results</h3>
+    <div id="assign-result"></div>
+    <div id="driver-loads"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 4 — Benchmark                                                      -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-benchmark">
+  <div class="panel-header">
+    <h2>Algorithm Benchmark</h2>
+    <div class="controls">
+      <label>City counts (comma-sep): <input type="text" id="bench-sizes" value="5,10,20,50"/></label>
+      <button id="btn-benchmark" class="btn primary">Run Benchmark</button>
+    </div>
+  </div>
+  <div id="bench-loading" class="loading" style="display:none">⏳ Running C++ benchmarks…</div>
+  <div class="two-col">
+    <div class="card chart-card">
+      <h3>Route Cost Comparison</h3>
+      <canvas id="bench-cost-chart"></canvas>
+    </div>
+    <div class="card chart-card">
+      <h3>Execution Time (ms)</h3>
+      <canvas id="bench-time-chart"></canvas>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Raw Results Table</h3>
+    <div id="bench-table-wrap"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 5 — Knapsack DP                                                    -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-knapsack">
+  <div class="panel-header">
+    <h2>DP Knapsack — Vehicle Packing</h2>
+    <button id="btn-demo-knapsack" class="btn secondary">Demo Data</button>
+    <button id="btn-knapsack" class="btn primary">Solve</button>
+  </div>
+  <div class="two-col">
+    <div class="card">
+      <h3>Package List</h3>
+      <label>Vehicle capacity (kg): <input type="number" id="ks-cap" value="50" min="1"/></label>
+      <div class="add-row">
+        <input type="text"   id="ks-name"   placeholder="Package name" value="Pkg A"/>
+        <input type="number" id="ks-weight" placeholder="Weight" min="1" value="10"/>
+        <input type="number" id="ks-value"  placeholder="Value/Priority" min="1" value="60"/>
+        <button id="btn-add-pkg" class="btn small">+ Add</button>
+      </div>
+      <table id="ks-table">
+        <thead><tr><th>#</th><th>Name</th><th>Weight</th><th>Value</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Optimal Selection (DP Result)</h3>
+      <div id="ks-result" class="result-box">Add packages and click Solve.</div>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
