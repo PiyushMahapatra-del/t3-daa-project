@@ -1,7 +1,8 @@
 """
 app.py — Flask backend for Delivery Optimizer
-Calls the C++ binary (bin/optimizer.exe on Windows) with JSON on stdin,
-reads JSON from stdout.
+Primary:  calls the compiled C++ binary (bin/optimizer.exe on Windows).
+Fallback: uses algorithms.py (pure Python) when binary is not built yet.
+          → Run with just:  pip install flask && python app.py
 """
 import subprocess, json, os, sys
 from flask import Flask, request, jsonify, render_template
@@ -12,10 +13,16 @@ app = Flask(__name__)
 BASE  = os.path.dirname(os.path.abspath(__file__))
 BIN   = os.path.join(BASE, "bin", "optimizer.exe" if sys.platform == "win32" else "optimizer")
 
+# ── Detect mode at startup ─────────────────────────────────────────────────
+USE_CPP = os.path.exists(BIN)
+if USE_CPP:
+    print(f"[optimizer] C++ mode  → {BIN}")
+else:
+    print("[optimizer] Python fallback mode (C++ binary not found — run build.bat to enable C++ mode)")
+    from algorithms import run_command as py_run
+
 def call_cpp(command: str, payload: dict) -> dict:
     """Call the C++ binary and return parsed JSON output."""
-    if not os.path.exists(BIN):
-        return {"error": f"Binary not found at {BIN}. Please run build.bat first."}
     try:
         result = subprocess.run(
             [BIN, command],
@@ -34,6 +41,12 @@ def call_cpp(command: str, payload: dict) -> dict:
     except Exception as e:
         return {"error": str(e)}
 
+def run(command: str, payload: dict) -> dict:
+    """Route to C++ binary or Python fallback."""
+    if USE_CPP:
+        return call_cpp(command, payload)
+    return py_run(command, payload)
+
 # ── Routes ─────────────────────────────────────────────────────────────────
 
 @app.route("/")
@@ -43,7 +56,7 @@ def index():
 @app.route("/api/generate", methods=["POST"])
 def generate():
     data = request.json or {}
-    return jsonify(call_cpp("generate", {
+    return jsonify(run("generate", {
         "n":    data.get("n", 10),
         "seed": data.get("seed", 42)
     }))
@@ -51,7 +64,7 @@ def generate():
 @app.route("/api/shortest", methods=["POST"])
 def shortest():
     data = request.json or {}
-    return jsonify(call_cpp("shortest", {
+    return jsonify(run("shortest", {
         "n":    data.get("n", 10),
         "seed": data.get("seed", 42),
         "src":  data.get("src", 0),
@@ -61,7 +74,7 @@ def shortest():
 @app.route("/api/tsp", methods=["POST"])
 def tsp():
     data = request.json or {}
-    return jsonify(call_cpp("tsp", {
+    return jsonify(run("tsp", {
         "n":     data.get("n", 10),
         "seed":  data.get("seed", 42),
         "depot": data.get("depot", 0),
@@ -72,7 +85,7 @@ def tsp():
 @app.route("/api/assign", methods=["POST"])
 def assign():
     data = request.json or {}
-    return jsonify(call_cpp("assign", {
+    return jsonify(run("assign", {
         "orders":  data.get("orders", []),
         "drivers": data.get("drivers", [])
     }))
@@ -80,14 +93,14 @@ def assign():
 @app.route("/api/benchmark", methods=["POST"])
 def benchmark():
     data = request.json or {}
-    return jsonify(call_cpp("benchmark", {
+    return jsonify(run("benchmark", {
         "sizes": data.get("sizes", [5, 10, 20, 50])
     }))
 
 @app.route("/api/knapsack", methods=["POST"])
 def knapsack():
     data = request.json or {}
-    return jsonify(call_cpp("knapsack", {
+    return jsonify(run("knapsack", {
         "weights":  data.get("weights", []),
         "values":   data.get("values", []),
         "capacity": data.get("capacity", 100)
