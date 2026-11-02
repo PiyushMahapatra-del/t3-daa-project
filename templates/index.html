@@ -3,420 +3,219 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>DeliverOpt — Intelligent Delivery Optimizer</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<title>DeliverOpt India — Route Optimizer</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <link rel="stylesheet" href="/static/css/style.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
-<!-- ── Sidebar ─────────────────────────────────────────────────────────── -->
-<aside class="sidebar" id="sidebar">
-  <a class="sidebar-brand" href="#">
-    <div class="brand-icon">⬡</div>
-    <div class="brand-text">
-      <span class="brand-name">DeliverOpt</span>
-      <span class="brand-sub">v2.0 · Route Engine</span>
+<div class="tricolor"></div>
+<header class="header">
+  <div class="header-inner">
+    <div class="brand">
+      <div class="brand-logo">🚚</div>
+      <div>DeliverOpt<small>India route optimizer</small></div>
     </div>
-  </a>
-
-  <nav class="sidebar-nav">
-    <div class="nav-section-label">Visualization</div>
-    <button class="nav-item active" data-tab="graph">
-      <span class="nav-icon">◈</span>
-      <span class="nav-label">City Network</span>
-    </button>
-    <button class="nav-item" data-tab="routing">
-      <span class="nav-icon">⟁</span>
-      <span class="nav-label">Route Planning</span>
-    </button>
-    <button class="nav-item" data-tab="benchmark">
-      <span class="nav-icon">▦</span>
-      <span class="nav-label">Benchmarks</span>
-    </button>
-
-    <div class="nav-section-label">Operations</div>
-    <button class="nav-item" data-tab="orders">
-      <span class="nav-icon">≡</span>
-      <span class="nav-label">Orders & Drivers</span>
-    </button>
-    <button class="nav-item" data-tab="knapsack">
-      <span class="nav-icon">⬡</span>
-      <span class="nav-label">Capacity Planner</span>
-    </button>
-  </nav>
-
-  <div class="sidebar-footer">
-    <div class="version-tag">DAA Project · T3 · 2024</div>
+    <nav class="tabs">
+      <button class="tab active" data-tab="planner">🗺️ Route Planner</button>
+      <button class="tab" data-tab="orders">📦 Orders &amp; Drivers</button>
+      <button class="tab" data-tab="capacity">🎒 Load Planner</button>
+      <button class="tab" data-tab="bench">📊 Benchmarks</button>
+    </nav>
+    <div class="mode-pill" id="mode-pill"><i></i><span id="mode-text">Python engine</span></div>
   </div>
-</aside>
+</header>
 
-<!-- ── Main ───────────────────────────────────────────────────────────── -->
-<div class="main-wrap">
+<main class="page">
 
-  <!-- Top Bar -->
-  <header class="topbar">
-    <div class="topbar-left">
-      <button class="sidebar-toggle" id="sidebar-toggle">☰</button>
-      <div class="breadcrumb">
-        <span class="bc-root">DeliverOpt</span>
-        <span class="bc-sep">/</span>
-        <span class="bc-current" id="bc-current">City Network</span>
-      </div>
-    </div>
-    <div class="topbar-right">
-      <div class="live-clock" id="live-clock">00:00:00</div>
-      <div class="mode-pill python" id="mode-pill">
-        <span class="dot"></span>
-        <span id="mode-text">Python Mode</span>
-      </div>
-    </div>
-  </header>
+  <!-- ═══ ROUTE PLANNER ═══════════════════════════════════════════════════ -->
+  <section class="panel active" id="panel-planner">
+    <div class="planner">
 
-  <!-- KPI Strip -->
-  <div class="kpi-strip">
-    <div class="kpi-card">
-      <div class="kpi-label">Cities</div>
-      <div class="kpi-value" id="kpi-cities">—</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Road Edges</div>
-      <div class="kpi-value" id="kpi-edges">—</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Orders</div>
-      <div class="kpi-value" id="kpi-orders">0</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Drivers</div>
-      <div class="kpi-value" id="kpi-drivers">0</div>
-    </div>
-    <div class="kpi-card accent">
-      <div class="kpi-label">Last Route Cost</div>
-      <div class="kpi-value" id="kpi-algo">—</div>
-    </div>
-  </div>
+      <div class="side">
 
-  <!-- ══════════════════════════════════════════════════════════════════ -->
-  <!-- TAB 1 — City Network                                               -->
-  <!-- ══════════════════════════════════════════════════════════════════ -->
-  <div class="tab-panel active" id="tab-graph">
-    <div class="page-header">
-      <div>
-        <h1 class="page-title">City Network Generator</h1>
-        <p class="page-sub">Euclidean complete graph · seed-reproducible · real-time canvas</p>
-      </div>
-      <div class="page-actions">
-        <div class="form-inline">
-          <label>Cities</label>
-          <input type="number" id="gen-n" value="14" min="3" max="50" style="width:70px"/>
-          <label>Seed</label>
-          <input type="number" id="gen-seed" value="42" min="1" max="9999" style="width:80px"/>
-        </div>
-        <button id="btn-generate" class="btn btn-primary">⊕ Generate Graph</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Network Visualization</span>
-        <div class="legend-row">
-          <span class="legend-dot" style="background:var(--cyan)"></span>
-          <span>City nodes</span>
-          <span class="legend-dot" style="background:var(--surface-3); margin-left:10px"></span>
-          <span>Road edges</span>
-        </div>
-      </div>
-      <div class="canvas-wrap" style="position:relative">
-        <canvas id="graph-canvas" style="min-height:420px"></canvas>
-        <div class="canvas-empty" id="graph-empty">
-          <span class="canvas-empty-icon">◈</span>
-          <span>Click <strong>Generate Graph</strong> to render the city network</span>
-        </div>
-      </div>
-      <div class="canvas-info" id="graph-info" style="display:none"></div>
-    </div>
-  </div>
-
-  <!-- ══════════════════════════════════════════════════════════════════ -->
-  <!-- TAB 2 — Route Planning                                             -->
-  <!-- ══════════════════════════════════════════════════════════════════ -->
-  <div class="tab-panel" id="tab-routing">
-    <div class="page-header">
-      <div>
-        <h1 class="page-title">Route Planning</h1>
-        <p class="page-sub">Dijkstra SSSP · Nearest Neighbor · 2-Opt · Held-Karp DP</p>
-      </div>
-    </div>
-
-    <div class="grid-2">
-      <!-- Dijkstra -->
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">⚡ Shortest Path — Dijkstra</span>
-          <span class="card-badge cyan">O((V+E) log V)</span>
-        </div>
-        <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
-          <div class="grid-2" style="gap:10px">
-            <div class="form-row">
-              <label>Source city</label>
-              <input type="number" id="dijk-src" value="0" min="0"/>
-            </div>
-            <div class="form-row">
-              <label>Destination</label>
-              <input type="number" id="dijk-dst" value="6" min="0"/>
+        <!-- 1 · Network -->
+        <div class="card">
+          <div class="card-h">
+            <h3><span class="step-no">1</span> Cities on the map</h3>
+            <span class="chip-tag blue" id="net-badge">—</span>
+          </div>
+          <div class="card-b">
+            <div>
+              <div class="range-head"><label class="lbl" style="margin:0">Number of cities</label><span class="range-val" id="n-val">12</span></div>
+              <input type="range" id="gen-n" min="5" max="40" value="12"/>
+              <div class="hint">Real Indian cities joined by their nearest road links.</div>
             </div>
           </div>
-          <button id="btn-dijkstra" class="btn btn-primary w-full">Find Shortest Path →</button>
-          <div id="dijkstra-result" class="result-panel" style="display:none"></div>
+        </div>
+
+        <!-- 2 · Shortest path -->
+        <div class="card">
+          <div class="card-h">
+            <h3><span class="step-no">2</span> Shortest route</h3>
+            <span class="chip-tag">Dijkstra</span>
+          </div>
+          <div class="card-b">
+            <div class="row">
+              <div><label class="lbl">From</label><select id="dijk-src"></select></div>
+              <button class="swap fixed" id="btn-swap" title="Swap">⇄</button>
+              <div><label class="lbl">To</label><select id="dijk-dst"></select></div>
+            </div>
+            <button class="btn btn-primary block" id="btn-dijkstra">Find shortest route</button>
+            <div id="dijkstra-result"></div>
+          </div>
+        </div>
+
+        <!-- 3 · TSP -->
+        <div class="card">
+          <div class="card-h">
+            <h3><span class="step-no s">3</span> Multi-stop delivery</h3>
+            <span class="chip-tag saffron">Travelling salesman</span>
+          </div>
+          <div class="card-b">
+            <div><label class="lbl">Depot (start &amp; end)</label><select id="tsp-depot"></select></div>
+            <div>
+              <label class="lbl">Delivery stops <span class="hint" id="stop-count" style="font-weight:500"></span></label>
+              <div class="chips" id="stop-chips"></div>
+              <div class="hint" style="margin-top:6px">Tap a chip or a city on the map to add / remove a stop.</div>
+            </div>
+            <div class="seg" id="algo-seg">
+              <input type="radio" name="algo" id="a1" value="greedy"><label for="a1">Quick<small>Nearest neighbour</small></label>
+              <input type="radio" name="algo" id="a2" value="2opt" checked><label for="a2">Better<small>2-Opt</small></label>
+              <input type="radio" name="algo" id="a3" value="dp"><label for="a3">Best<small>Exact · ≤ 12 stops</small></label>
+            </div>
+            <button class="btn btn-saffron block" id="btn-tsp">Plan delivery tour</button>
+            <div id="tsp-result"></div>
+          </div>
         </div>
       </div>
 
-      <!-- TSP -->
+      <div class="map-col">
+        <div class="card map-card">
+          <div class="map-wrap">
+            <div id="map"></div>
+            <div class="map-legend">
+              <span><i class="dot" style="background:#475569"></i> City</span>
+              <span><i style="background:#1d4ed8"></i> Shortest route</span>
+              <span><i style="background:#f97316"></i> Delivery tour</span>
+              <span><i class="dot" style="background:#16a34a"></i> Depot</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══ ORDERS ══════════════════════════════════════════════════════════ -->
+  <section class="panel" id="panel-orders">
+    <div class="page-head">
+      <div><h1>Orders &amp; drivers</h1><p>Urgent orders are served first and given to the first driver with enough free capacity.</p></div>
+      <div class="actions">
+        <button class="btn btn-ghost" id="btn-load-demo">Load sample data</button>
+        <button class="btn btn-primary" id="btn-assign">Assign orders →</button>
+      </div>
+    </div>
+
+    <div class="two-col">
       <div class="card">
-        <div class="card-header">
-          <span class="card-title">⟲ TSP Route Optimizer</span>
-          <span class="card-badge amber">Heuristic + Exact DP</span>
-        </div>
-        <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
-          <div class="form-row">
-            <label>Depot (start / end city index)</label>
-            <input type="number" id="tsp-depot" value="0" min="0"/>
-          </div>
-          <div class="form-row">
-            <label>Delivery stops (comma-separated)</label>
-            <input type="text" id="tsp-stops" placeholder="e.g.  2, 4, 7, 9"/>
-          </div>
-          <div class="form-row">
-            <label>Algorithm</label>
-            <select id="tsp-algo">
-              <option value="greedy">Nearest Neighbor — O(n²)</option>
-              <option value="2opt" selected>2-Opt Improved — local search</option>
-              <option value="dp">Held-Karp Exact DP — ≤ 12 stops</option>
-            </select>
-          </div>
-          <button id="btn-tsp" class="btn btn-primary w-full">Plan TSP Route →</button>
-          <div id="tsp-result" class="result-panel" style="display:none"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Route Canvas -->
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Route Visualization</span>
-        <div class="legend-row">
-          <span class="legend-dot" style="background:var(--cyan)"></span><span>Dijkstra path</span>
-          <span class="legend-dot" style="background:var(--amber); margin-left:12px"></span><span>TSP tour</span>
-          <span class="legend-dot" style="background:var(--emerald); margin-left:12px"></span><span>Depot</span>
-        </div>
-      </div>
-      <div class="canvas-wrap">
-        <canvas id="route-canvas" style="min-height:400px"></canvas>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══════════════════════════════════════════════════════════════════ -->
-  <!-- TAB 3 — Orders & Drivers                                           -->
-  <!-- ══════════════════════════════════════════════════════════════════ -->
-  <div class="tab-panel" id="tab-orders">
-    <div class="page-header">
-      <div>
-        <h1 class="page-title">Orders & Driver Assignment</h1>
-        <p class="page-sub">Priority queue scheduler · greedy driver matching · O(n log n)</p>
-      </div>
-      <div class="page-actions">
-        <button id="btn-load-demo" class="btn btn-ghost">Load Demo Data</button>
-        <button id="btn-assign" class="btn btn-primary">Run Assignment →</button>
-      </div>
-    </div>
-
-    <div class="grid-2">
-      <!-- Orders -->
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">Delivery Orders</span>
-          <span class="card-badge" id="order-count-badge">0 orders</span>
-        </div>
+        <div class="card-h"><h3>📦 Orders</h3><span class="chip-tag" id="order-count">0 orders</span></div>
         <div class="inline-form">
-          <input type="number" id="o-src"    placeholder="Src"  min="0" max="49" value="0" title="Source city"/>
-          <input type="number" id="o-dst"    placeholder="Dst"  min="0" max="49" value="3" title="Dest city"/>
-          <input type="number" id="o-weight" placeholder="kg"   min="1" max="500" value="20" title="Weight (kg)"/>
-          <select id="o-priority">
-            <option value="URGENT">Urgent</option>
-            <option value="NORMAL" selected>Normal</option>
-            <option value="LOW">Low</option>
-          </select>
-          <button id="btn-add-order" class="btn btn-sm btn-primary">+ Add</button>
+          <div><label class="lbl">From</label><select id="o-src"></select></div>
+          <div><label class="lbl">To</label><select id="o-dst"></select></div>
+          <div style="max-width:90px"><label class="lbl">Kg</label><input type="number" id="o-weight" value="20" min="1"/></div>
+          <div><label class="lbl">Priority</label>
+            <select id="o-priority"><option value="URGENT">Urgent</option><option value="NORMAL" selected>Normal</option><option value="LOW">Low</option></select>
+          </div>
+          <button class="btn btn-primary btn-sm" id="btn-add-order">Add</button>
         </div>
         <div class="table-wrap scroll-y">
-          <table class="data-table" id="orders-table">
-            <thead>
-              <tr>
-                <th>#</th><th>Route</th><th>Weight</th><th>Priority</th><th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr class="empty-row"><td colspan="5">No orders yet</td></tr>
-            </tbody>
-          </table>
+          <table class="tbl" id="orders-table"><thead><tr><th>#</th><th>Route</th><th>Weight</th><th>Priority</th><th></th></tr></thead><tbody></tbody></table>
         </div>
       </div>
 
-      <!-- Drivers -->
       <div class="card">
-        <div class="card-header">
-          <span class="card-title">Available Drivers</span>
-          <span class="card-badge" id="driver-count-badge">0 drivers</span>
-        </div>
+        <div class="card-h"><h3>🚛 Drivers</h3><span class="chip-tag" id="driver-count">0 drivers</span></div>
         <div class="inline-form">
-          <input type="text"   id="d-name" placeholder="Driver name" value="Driver A" class="flex2"/>
-          <input type="number" id="d-cap"  placeholder="Capacity (kg)" min="10" max="2000" value="100"/>
-          <button id="btn-add-driver" class="btn btn-sm btn-primary">+ Add</button>
+          <div class="w2"><label class="lbl">Name</label><input type="text" id="d-name" value="Driver A"/></div>
+          <div><label class="lbl">Capacity (kg)</label><input type="number" id="d-cap" value="100" min="10"/></div>
+          <button class="btn btn-primary btn-sm" id="btn-add-driver">Add</button>
         </div>
         <div class="table-wrap scroll-y">
-          <table class="data-table" id="drivers-table">
-            <thead>
-              <tr>
-                <th>#</th><th>Name</th><th>Capacity</th><th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr class="empty-row"><td colspan="4">No drivers yet</td></tr>
-            </tbody>
-          </table>
+          <table class="tbl" id="drivers-table"><thead><tr><th>#</th><th>Name</th><th>Capacity</th><th></th></tr></thead><tbody></tbody></table>
         </div>
       </div>
     </div>
 
-    <!-- Assignment Results -->
-    <div class="card" id="assign-result-card" style="display:none">
-      <div class="card-header">
-        <span class="card-title">Assignment Results</span>
-        <span class="card-badge emerald" id="assign-summary-badge"></span>
-      </div>
-      <div class="table-wrap">
-        <div id="assign-result"></div>
-      </div>
-      <div class="section-label">Driver Capacity Usage</div>
-      <div class="driver-loads-grid" id="driver-loads"></div>
+    <div class="card" id="assign-card" style="display:none;margin-top:20px">
+      <div class="card-h"><h3>Assignment result</h3><span class="chip-tag green" id="assign-badge"></span></div>
+      <div class="table-wrap" id="assign-result"></div>
+      <div class="loads" id="driver-loads"></div>
     </div>
-  </div>
+  </section>
 
-  <!-- ══════════════════════════════════════════════════════════════════ -->
-  <!-- TAB 4 — Benchmarks                                                 -->
-  <!-- ══════════════════════════════════════════════════════════════════ -->
-  <div class="tab-panel" id="tab-benchmark">
-    <div class="page-header">
-      <div>
-        <h1 class="page-title">Algorithm Benchmarks</h1>
-        <p class="page-sub">Greedy vs 2-Opt vs Held-Karp DP — cost and runtime comparison</p>
-      </div>
-      <div class="page-actions">
-        <div class="form-inline">
-          <label>City counts</label>
-          <input type="text" id="bench-sizes" value="5,8,12,20,35" style="width:180px"/>
-        </div>
-        <button id="btn-benchmark" class="btn btn-primary">▶ Run Benchmarks</button>
+  <!-- ═══ LOAD PLANNER ════════════════════════════════════════════════════ -->
+  <section class="panel" id="panel-capacity">
+    <div class="page-head">
+      <div><h1>Load planner</h1><p>Pick the most valuable set of packages that fits in one vehicle (0/1 knapsack).</p></div>
+      <div class="actions">
+        <button class="btn btn-ghost" id="btn-demo-ks">Load sample packages</button>
+        <button class="btn btn-primary" id="btn-ks">Find best load →</button>
       </div>
     </div>
-
-    <div id="bench-loading" class="loading-bar" style="display:none">
-      <div class="loading-track"><div class="loading-fill"></div></div>
-      <span>Computing algorithm benchmarks…</span>
-    </div>
-
-    <div class="grid-2">
-      <div class="card chart-card">
-        <div class="card-header"><span class="card-title">Route Cost Comparison</span><span class="card-badge">lower is better</span></div>
-        <div class="card-body"><canvas id="bench-cost-chart"></canvas></div>
-      </div>
-      <div class="card chart-card">
-        <div class="card-header"><span class="card-title">Execution Time (ms)</span><span class="card-badge">log scale</span></div>
-        <div class="card-body"><canvas id="bench-time-chart"></canvas></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header"><span class="card-title">Detailed Results</span></div>
-      <div class="bench-table-wrap" id="bench-table-wrap">
-        <div class="empty-msg">Run a benchmark to see the full comparison table.</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══════════════════════════════════════════════════════════════════ -->
-  <!-- TAB 5 — Knapsack                                                   -->
-  <!-- ══════════════════════════════════════════════════════════════════ -->
-  <div class="tab-panel" id="tab-knapsack">
-    <div class="page-header">
-      <div>
-        <h1 class="page-title">Vehicle Capacity Planner</h1>
-        <p class="page-sub">0/1 Knapsack DP · O(n · W) · maximum value selection</p>
-      </div>
-      <div class="page-actions">
-        <button id="btn-demo-knapsack" class="btn btn-ghost">Load Demo</button>
-        <button id="btn-knapsack" class="btn btn-primary">⊛ Solve Knapsack</button>
-      </div>
-    </div>
-
-    <div class="grid-2">
-      <!-- Input -->
+    <div class="two-col">
       <div class="card">
-        <div class="card-header">
-          <span class="card-title">Package List</span>
+        <div class="card-h"><h3>Packages</h3><span class="chip-tag" id="ks-count">0 packages</span></div>
+        <div class="card-b" style="padding-bottom:0">
+          <div><label class="lbl">Vehicle capacity (kg)</label><input type="number" id="ks-cap" value="50" min="1"/></div>
         </div>
-        <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
-          <div class="form-row">
-            <label>Vehicle capacity (kg)</label>
-            <input type="number" id="ks-cap" value="50" min="1"/>
-          </div>
-        </div>
-        <div class="inline-form">
-          <input type="text"   id="ks-name"   placeholder="Package name" value="Pkg A" class="flex2"/>
-          <input type="number" id="ks-weight" placeholder="kg"    min="1" value="10" title="Weight (kg)"/>
-          <input type="number" id="ks-value"  placeholder="value" min="1" value="60" title="Priority value"/>
-          <button id="btn-add-pkg" class="btn btn-sm btn-primary">+ Add</button>
+        <div class="inline-form" style="margin-top:14px">
+          <div class="w2"><label class="lbl">Name</label><input type="text" id="ks-name" value="Package A"/></div>
+          <div><label class="lbl">Kg</label><input type="number" id="ks-weight" value="10" min="1"/></div>
+          <div><label class="lbl">Value ₹</label><input type="number" id="ks-value" value="600" min="1"/></div>
+          <button class="btn btn-primary btn-sm" id="btn-add-pkg">Add</button>
         </div>
         <div class="table-wrap scroll-y">
-          <table class="data-table" id="ks-table">
-            <thead><tr><th>#</th><th>Name</th><th>Weight</th><th>Value</th><th></th></tr></thead>
-            <tbody><tr class="empty-row"><td colspan="5">No packages yet</td></tr></tbody>
-          </table>
+          <table class="tbl" id="ks-table"><thead><tr><th>#</th><th>Package</th><th>Weight</th><th>Value</th><th></th></tr></thead><tbody></tbody></table>
         </div>
       </div>
 
-      <!-- Result -->
       <div class="card">
-        <div class="card-header">
-          <span class="card-title">Optimal Selection</span>
-          <span class="card-badge emerald" id="ks-result-badge" style="display:none"></span>
-        </div>
-        <div id="ks-result">
-          <div class="empty-msg">Add packages and click <strong>Solve Knapsack</strong>.</div>
-        </div>
-        <div id="ks-visual" style="display:none">
-          <div class="capacity-section">
-            <div class="capacity-label">
-              <span>Capacity used</span>
-              <span id="ks-cap-text" style="font-family:var(--mono)"></span>
-            </div>
-            <div class="capacity-bar-wrap">
-              <div class="capacity-bar-fill" id="ks-cap-fill" style="width:0%"></div>
-            </div>
-          </div>
+        <div class="card-h"><h3>Best selection</h3><span class="chip-tag green" id="ks-badge" style="display:none"></span></div>
+        <div id="ks-result"><div class="empty"><span class="big">🎒</span>Add packages, then press <b>Find best load</b>.</div></div>
+        <div class="cap" id="ks-cap-box" style="display:none">
+          <div class="meta" style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)"><span>Vehicle filled</span><b id="ks-cap-text"></b></div>
+          <div class="bar"><div class="blue" id="ks-cap-fill"></div></div>
         </div>
       </div>
     </div>
-  </div>
+  </section>
 
-</div><!-- /main-wrap -->
+  <!-- ═══ BENCHMARKS ══════════════════════════════════════════════════════ -->
+  <section class="panel" id="panel-bench">
+    <div class="page-head">
+      <div><h1>Algorithm benchmarks</h1><p>How the three tour planners compare on random test networks.</p></div>
+      <div class="actions">
+        <div style="width:200px"><input type="text" id="bench-sizes" value="5,8,12,20,30"/></div>
+        <button class="btn btn-primary" id="btn-bench">Run benchmark</button>
+      </div>
+    </div>
+    <div id="bench-loading" class="loading" style="display:none"><div class="spin"></div>Running benchmarks…</div>
+    <div class="two-col">
+      <div class="card"><div class="card-h"><h3>Tour length (km)</h3><span class="chip-tag">lower is better</span></div><div class="chart-box"><canvas id="chart-cost"></canvas></div></div>
+      <div class="card"><div class="card-h"><h3>Run time (ms)</h3><span class="chip-tag">log scale</span></div><div class="chart-box"><canvas id="chart-time"></canvas></div></div>
+    </div>
+    <div class="card" style="margin-top:20px">
+      <div class="card-h"><h3>Detailed results</h3></div>
+      <div class="table-wrap" id="bench-table"><div class="empty">Run a benchmark to see the comparison table.</div></div>
+    </div>
+  </section>
 
-<!-- Toast container -->
-<div id="toast-container"></div>
+</main>
 
+<div id="toasts"></div>
 <script src="/static/js/app.js"></script>
 </body>
 </html>

@@ -41,6 +41,75 @@ def build_random_graph(n, seed=42):
             adj[j].append((i, w))
     return nodes, edges, adj
 
+# ── Real Indian road network ──────────────────────────────────────────────────
+INDIA = [
+    ("Delhi","Delhi",28.6139,77.2090),("Mumbai","Maharashtra",19.0760,72.8777),
+    ("Bengaluru","Karnataka",12.9716,77.5946),("Chennai","Tamil Nadu",13.0827,80.2707),
+    ("Kolkata","West Bengal",22.5726,88.3639),("Hyderabad","Telangana",17.3850,78.4867),
+    ("Ahmedabad","Gujarat",23.0225,72.5714),("Pune","Maharashtra",18.5204,73.8567),
+    ("Jaipur","Rajasthan",26.9124,75.7873),("Lucknow","Uttar Pradesh",26.8467,80.9462),
+    ("Bhopal","Madhya Pradesh",23.2599,77.4126),("Nagpur","Maharashtra",21.1458,79.0882),
+    ("Chandigarh","Chandigarh",30.7333,76.7794),("Patna","Bihar",25.5941,85.1376),
+    ("Bhubaneswar","Odisha",20.2961,85.8245),("Guwahati","Assam",26.1445,91.7362),
+    ("Kochi","Kerala",9.9312,76.2673),("Visakhapatnam","Andhra Pradesh",17.6868,83.2185),
+    ("Indore","Madhya Pradesh",22.7196,75.8577),("Surat","Gujarat",21.1702,72.8311),
+    ("Kanpur","Uttar Pradesh",26.4499,80.3319),("Coimbatore","Tamil Nadu",11.0168,76.9558),
+    ("Vadodara","Gujarat",22.3072,73.1812),("Amritsar","Punjab",31.6340,74.8723),
+    ("Ranchi","Jharkhand",23.3441,85.3096),("Raipur","Chhattisgarh",21.2514,81.6296),
+    ("Dehradun","Uttarakhand",30.3165,78.0322),("Jodhpur","Rajasthan",26.2389,73.0243),
+    ("Madurai","Tamil Nadu",9.9252,78.1198),("Thiruvananthapuram","Kerala",8.5241,76.9366),
+    ("Mysuru","Karnataka",12.2958,76.6394),("Panaji","Goa",15.4909,73.8278),
+    ("Varanasi","Uttar Pradesh",25.3176,82.9739),("Agra","Uttar Pradesh",27.1767,78.0081),
+    ("Udaipur","Rajasthan",24.5854,73.7125),("Srinagar","J&K",34.0837,74.7973),
+    ("Shimla","Himachal Pradesh",31.1048,77.1734),("Vijayawada","Andhra Pradesh",16.5062,80.6480),
+    ("Mangaluru","Karnataka",12.9141,74.8560),("Gwalior","Madhya Pradesh",26.2183,78.1828),
+]
+
+def haversine_km(la1, lo1, la2, lo2):
+    R, D = 6371.0, math.pi / 180.0
+    dla, dlo = (la2 - la1) * D, (lo2 - lo1) * D
+    a = math.sin(dla/2)**2 + math.cos(la1*D) * math.cos(la2*D) * math.sin(dlo/2)**2
+    return 2 * R * math.asin(math.sqrt(a))
+
+def build_india_graph(n, seed=42):
+    """First n Indian cities; 3-nearest-neighbour road links (always connected).
+    Weight = great-circle km x 1.3 road factor, rounded to 0.1 km."""
+    n = max(2, min(n, len(INDIA)))
+    nodes = [{"id": INDIA[i][0], "idx": i, "state": INDIA[i][1],
+              "lat": INDIA[i][2], "lng": INDIA[i][3],
+              "x": INDIA[i][3], "y": INDIA[i][2]} for i in range(n)]
+    d = [[round(haversine_km(INDIA[i][2], INDIA[i][3], INDIA[j][2], INDIA[j][3]) * 1.3, 1)
+          for j in range(n)] for i in range(n)]
+    has = set()
+    for i in range(n):
+        order = sorted((j for j in range(n) if j != i), key=lambda j: d[i][j])
+        for j in order[:min(3, n-1)]:
+            has.add((min(i, j), max(i, j)))
+    comp = list(range(n))
+    def find(x):
+        while comp[x] != x:
+            comp[x] = comp[comp[x]]
+            x = comp[x]
+        return x
+    for i, j in has:
+        comp[find(i)] = find(j)
+    while True:
+        best, pair = float('inf'), None
+        for i in range(n):
+            for j in range(i+1, n):
+                if find(i) != find(j) and d[i][j] < best:
+                    best, pair = d[i][j], (i, j)
+        if pair is None:
+            break
+        has.add(pair)
+        comp[find(pair[0])] = find(pair[1])
+    edges, adj = [], [[] for _ in range(n)]
+    for i, j in sorted(has):
+        edges.append({"from": i, "to": j, "weight": d[i][j]})
+        adj[i].append((j, d[i][j]))
+        adj[j].append((i, d[i][j]))
+    return nodes, edges, adj
+
 # ── Member 2: Dijkstra ────────────────────────────────────────────────────────
 
 def dijkstra(adj, n, src):
@@ -272,18 +341,18 @@ def assign_orders(orders, drivers):
 def run_command(cmd, inp):
     if cmd == "generate":
         n, seed = inp.get("n", 10), inp.get("seed", 42)
-        n = max(2, min(50, n))
-        nodes, edges, adj = build_random_graph(n, seed)
+        n = max(2, min(40, n))
+        nodes, edges, adj = build_india_graph(n, seed)
         return {"nodes": nodes, "edges": edges, "n": n}
 
     if cmd == "shortest":
         n, seed = inp.get("n", 10), inp.get("seed", 42)
         src, dst = inp.get("src", 0), inp.get("dst", 1)
-        nodes, edges, adj = build_random_graph(n, seed)
+        nodes, edges, adj = build_india_graph(n, seed)
         src, dst = max(0, min(n-1, src)), max(0, min(n-1, dst))
         dist, prev = dijkstra(adj, n, src)
         raw_path   = reconstruct_path(prev, dst) if dist[dst] != INF else []
-        path_out   = [{"idx": i, "name": nodes[i]["id"], "x": nodes[i]["x"], "y": nodes[i]["y"]} for i in raw_path]
+        path_out   = [{"idx": i, "name": nodes[i]["id"], "x": nodes[i]["x"], "y": nodes[i]["y"], "lat": nodes[i]["lat"], "lng": nodes[i]["lng"]} for i in raw_path]
         return {
             "src": src, "dst": dst,
             "src_name": nodes[src]["id"], "dst_name": nodes[dst]["id"],
@@ -297,7 +366,7 @@ def run_command(cmd, inp):
         depot    = inp.get("depot", 0)
         stops    = [s for s in inp.get("stops", []) if 0 <= s < n and s != depot]
         algo     = inp.get("algo", "greedy")
-        nodes, edges, adj = build_random_graph(n, seed)
+        nodes, edges, adj = build_india_graph(n, seed)
         if algo == "dp" and len(stops) <= 12:
             tour = tsp_dp(adj, n, depot, stops)
         else:
@@ -305,7 +374,7 @@ def run_command(cmd, inp):
             if algo == "2opt":
                 tour = two_opt(adj, n, tour)
         cost     = path_cost(adj, n, tour)
-        tour_out = [{"idx": i, "name": nodes[i]["id"], "x": nodes[i]["x"], "y": nodes[i]["y"]} for i in tour]
+        tour_out = [{"idx": i, "name": nodes[i]["id"], "x": nodes[i]["x"], "y": nodes[i]["y"], "lat": nodes[i]["lat"], "lng": nodes[i]["lng"]} for i in tour]
         return {"algo": algo, "cost": cost, "tour": tour_out}
 
     if cmd == "assign":
