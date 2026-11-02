@@ -53,14 +53,9 @@ def run(command: str, payload: dict) -> dict:
 def index():
     return render_template("index.html")
 
-@app.route("/api/status", methods=["GET"])
-def status():
-    return jsonify({
-        "status": "online",
-        "mode": "C++ Native" if USE_CPP else "Python JIT Fallback",
-        "binary_path": BIN if USE_CPP else None,
-        "platform": sys.platform
-    })
+@app.route("/api/mode")
+def mode():
+    return jsonify({"mode": "cpp" if USE_CPP else "python"})
 
 @app.route("/api/generate", methods=["POST"])
 def generate():
