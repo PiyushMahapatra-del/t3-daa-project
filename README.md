@@ -128,3 +128,5 @@ t3-daa-project/
 ## Tech stack
 
 C++17 · CMake · nlohmann/json · Python 3 · Flask · Leaflet · OpenStreetMap · Chart.js
+
+--------------------------------------------------------------------------------------
