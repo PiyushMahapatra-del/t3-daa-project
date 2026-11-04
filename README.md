@@ -114,7 +114,7 @@ t3-daa-project/
 |---|---|---|
 | 1 | Orders and drivers | `cpp/src/core/` |
 | 2 | Graph, Dijkstra, TSP heuristics | `cpp/src/routing/` |
-| 3 | Held-Karp, Knapsack, benchmarks | `cpp/src/analysis/` |
+| 3 | Knapsack, benchmarks | `cpp/src/analysis/` |
 
 ## Limitations
 
